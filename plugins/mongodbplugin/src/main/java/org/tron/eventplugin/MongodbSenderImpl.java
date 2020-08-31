@@ -356,14 +356,17 @@ public class MongodbSenderImpl{
 
 
     public void handleTrc20Trigger(Object data) {
+
         if (Objects.isNull(data) || Objects.isNull(trc20TrackerTopic)){
             return;
         }
 
         MongoTemplate template = mongoTemplateMap.get(trc20TrackerTopic);
+        log.info(" >>>> template :{}", template);
         if (Objects.nonNull(template)) {
             try{
                 template.addEntity((String)data);
+                log.info(" >>>> save data success" );
             }catch (Exception e){
                 log.error("handleTrc20Trigger in mongo error ", e);
                 throw e;
@@ -379,11 +382,13 @@ public class MongodbSenderImpl{
 
         //MongoTemplate template = mongoTemplateMap.get(trc20SolidityTrackerTopic);
         MongoTemplate template = mongoTemplateMap.get(trc20TrackerTopic);
+        log.info(" >>>> template :{}", template);
         if (Objects.nonNull(template)) {
             try {
                 String dataStr = (String)data;
                 JSONObject jsStr = JSONObject.parseObject(dataStr);
                 String blockHash = jsStr.getString("blockHash");
+                log.info(" >>>> blockHash :{}", blockHash);
                 if (StringUtils.isNotNullOrEmpty(blockHash)) {
                     template.update("solidity",new Boolean(true),"blockHash",blockHash);
                 }
