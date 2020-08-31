@@ -13,10 +13,14 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.tron.mongodb.util.Converter;
 import org.tron.mongodb.util.Pager;
 
 public abstract class MongoTemplate {
+
+  private static final Logger log = LoggerFactory.getLogger(MongoTemplate.class);
 
     private MongoManager manager;
     private MongoCollection<Document> collection = null;
@@ -36,8 +40,11 @@ public abstract class MongoTemplate {
 
     public void addEntity(String entity) {
         MongoCollection<Document> collection = getCollection();
+
+        log.info(" >>>>> collection:{}", collection);
         if (Objects.nonNull(collection)){
             collection.insertOne(Converter.jsonStringToDocument(entity));
+            log.info(" >>>>> insertone success:{}");
         }
     }
 
@@ -59,7 +66,14 @@ public abstract class MongoTemplate {
 
     public long update(String updateColumn, Object updateValue, String whereColumn, Object whereValue) {
         MongoCollection<Document> collection = getCollection();
-        UpdateResult result = collection.updateMany(Filters.eq(whereColumn, whereValue),
+      final long count = collection.count(Filters.eq(whereColumn, whereValue));
+
+      if (count == 0) {
+        log.error(" >>>>>> mongo has no data, hash:{}", whereValue);
+        return 0;
+      }
+
+      UpdateResult result = collection.updateMany(Filters.eq(whereColumn, whereValue),
                 new Document("$set", new Document(updateColumn, updateValue)));
         return result.getModifiedCount();
     }
