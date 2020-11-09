@@ -1,5 +1,6 @@
 package org.tron.eventplugin;
 import com.alibaba.fastjson.JSONObject;
+import com.mongodb.DuplicateKeyException;
 import org.pf4j.util.StringUtils;
 
 import java.io.IOException;
@@ -367,7 +368,9 @@ public class MongodbSenderImpl{
             try{
                 template.addEntity((String)data);
                 log.info(" >>>> save data success" );
-            }catch (Exception e){
+            } catch (DuplicateKeyException e){
+                log.warn("handleTrc20Trigger in mongo error, duplicate key: blockhash, jsonData={}", data);
+            } catch (Exception e){
                 log.error("handleTrc20Trigger in mongo error ", e);
                 throw e;
             }
