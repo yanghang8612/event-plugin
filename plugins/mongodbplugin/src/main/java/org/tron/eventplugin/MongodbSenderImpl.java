@@ -370,7 +370,7 @@ public class MongodbSenderImpl{
                 template.addEntity((String)data);
                 log.info(" >>>> save data success" );
             } catch (DuplicateKeyException e) {
-                log.warn("handleTrc20Trigger in mongo error, duplicate key: blockhash, jsonData={}", data);
+                log.warn("DuplicateKeyException, mongo error, duplicate key: blockhash, jsonData={}", data);
             } catch (MongoWriteException ex) {
               if (ex.getMessage().contains("duplicate key error")) {
                 log.warn("handleTrc20Trigger in mongo error, duplicate key: blockhash, jsonData={}", data);
