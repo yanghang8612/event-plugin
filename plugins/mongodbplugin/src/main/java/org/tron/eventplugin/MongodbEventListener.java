@@ -103,11 +103,9 @@ public class MongodbEventListener implements IPluginEventListener {
         String triggerData =(String) data;
 
         if (triggerData.contains(Constant.TRC20TRACKER_TRIGGER_NAME)) {
-            log.info(" >>>>> trc20 trigger ");
             MongodbSenderImpl.getInstance().handleTrc20Trigger(data);
         }
         else if (triggerData.contains(Constant.TRC20TRACKER_SOLIDITY_TRIGGER_NAME)) {
-            log.info(" >>>>> trc20 solidity trigger ");
             MongodbSenderImpl.getInstance().handleTrc20SolidityTrigger(data);
         }
     }

@@ -41,10 +41,8 @@ public abstract class MongoTemplate {
     public void addEntity(String entity) {
         MongoCollection<Document> collection = getCollection();
 
-        log.info(" >>>>> collection:{}", collection);
         if (Objects.nonNull(collection)){
             collection.insertOne(Converter.jsonStringToDocument(entity));
-            log.info(" >>>>> insertone success:{}");
         }
     }
 
