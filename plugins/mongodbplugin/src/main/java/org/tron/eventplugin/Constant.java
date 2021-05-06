@@ -12,6 +12,7 @@ public class Constant {
     public static final int BLOCK_ERASE_TRIGGER = 1002;
     public static final int SHIELDED_TRC20TRACKER_TRIGGER = 1003;
     public static final int SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER = 1004;
+    public static final int FREEZE_TRACKER_TRIGGER = 1010;
 
 
 
@@ -21,6 +22,7 @@ public class Constant {
     public static final String CONTRACTEVENT_TRIGGER_NAME = "contractEventTrigger";
     public static final String SOLIDITY_TRIGGER_NAME = "solidityTrigger";
 
+    public static final String FREEZE_BALANCE_TRIGGER_NAME = "freezeBalanceTrigger";
     public static final String TRC20TRACKER_TRIGGER_NAME = "trc20TrackerTrigger";
     public static final String TRC20TRACKER_SOLIDITY_TRIGGER_NAME = "trc20SolidityTrackerTrigger";
     public static final String BLOCK_ERASE_TRIGGER_NAME = "blockErasedTrigger";
