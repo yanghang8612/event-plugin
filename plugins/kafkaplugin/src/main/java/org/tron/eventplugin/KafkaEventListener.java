@@ -82,10 +82,18 @@ public class KafkaEventListener implements IPluginEventListener {
         }
 
         MessageSenderImpl.getInstance().getTriggerQueue().offer(data);
-
     }
 
     @Override
+    public void handleFreezeBalanceEvent(Object data) {
+        if (Objects.isNull(data)){
+          return;
+        }
+
+        MessageSenderImpl.getInstance().getTriggerQueue().offer(data);
+    }
+
+  @Override
     public void handleShieldedTRC20Event(Object data) {
         if (Objects.isNull(data)){
             return;
