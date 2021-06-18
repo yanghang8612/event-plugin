@@ -244,6 +244,9 @@ public class MongodbSenderImpl{
         else if (triggerType == Constant.TRC20TRACKER_TRIGGER) {
             trc20TrackerTopic = topic;
         }
+        else if (triggerType == Constant.TRANSFER_TRACKER_TRIGGER) {
+            transferTrackerTopic = topic;
+        }
         else if (triggerType == Constant.TRC20TRACKER_SOLIDITY_TRIGGER) {
             trc20SolidityTrackerTopic = topic;
         }

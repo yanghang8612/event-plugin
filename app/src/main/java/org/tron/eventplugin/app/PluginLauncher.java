@@ -72,6 +72,7 @@ public class PluginLauncher {
             listener.setTopic(Trigger.BLOCK_ERASE_TRIGGER, "blockErased");
             listener.setTopic(Trigger.TRC20TRACKER_TRIGGER, "trc20Tracker");
             listener.setTopic(Trigger.TRC20TRACKER_SOLIDITY_TRIGGER, "trc20TrackerSolidity");
+            listener.setTopic(Trigger.TRANSFER_TRIGGER, "transferTracker");
 
         });
 
