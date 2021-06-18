@@ -134,7 +134,7 @@ public class MongodbEventListener implements IPluginEventListener {
         String triggerData =(String) data;
 
         if (triggerData.contains(Constant.TRANSFER_TRIGGER_NAME)) {
-            MongodbSenderImpl.getInstance().handleTrc20Trigger(data);
+            MongodbSenderImpl.getInstance().handleTransferTrigger(data);
         }
     }
 }
