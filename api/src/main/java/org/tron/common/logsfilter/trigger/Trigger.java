@@ -22,6 +22,7 @@ public class Trigger {
   public static final int TRC20TRACKER_SOLIDITY_TRIGGER = 1001;
   public static final int BLOCK_ERASE_TRIGGER = 1002;
   public static final int TRANSFER_TRIGGER = 1005;
+  public static final int FREEZE_TRACKER_TRIGGER = 1010;
 
 
   public static final String BLOCK_TRIGGER_NAME = "blockTrigger";

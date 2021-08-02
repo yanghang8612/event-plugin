@@ -35,6 +35,7 @@ public class MongodbSenderImpl{
 
     private String trc20TrackerTopic = "";
     private String transferTrackerTopic = "";
+    private String freezeTrackerTopic = "";
     private String trc20SolidityTrackerTopic = "";
     private String blockErasedTopic = "";
     private String shieldedTRC20TrackerTopic = "";
@@ -154,6 +155,9 @@ public class MongodbSenderImpl{
         mongoManager.createCollection(transferTrackerTopic);
         createMongoTemplate(transferTrackerTopic);
 
+        mongoManager.createCollection(freezeTrackerTopic);
+        createMongoTemplate(freezeTrackerTopic);
+
         mongoManager.createCollection(trc20SolidityTrackerTopic);
         createMongoTemplate(trc20SolidityTrackerTopic);
 
@@ -246,6 +250,9 @@ public class MongodbSenderImpl{
         }
         else if (triggerType == Constant.TRANSFER_TRACKER_TRIGGER) {
             transferTrackerTopic = topic;
+        }
+        else if (triggerType == Constant.FREEZE_TRACKER_TRIGGER) {
+            freezeTrackerTopic = topic;
         }
         else if (triggerType == Constant.TRC20TRACKER_SOLIDITY_TRIGGER) {
             trc20SolidityTrackerTopic = topic;
@@ -413,6 +420,33 @@ public class MongodbSenderImpl{
               }
             }  catch (Exception e){
                 log.error("handleTransferTrigger in mongo error ", e);
+                throw e;
+            }
+        }
+    }
+
+
+    public void handleFreezeTrigger(Object data) {
+        if (Objects.isNull(data) || Objects.isNull(freezeTrackerTopic)){
+            return;
+        }
+
+        MongoTemplate template = mongoTemplateMap.get(freezeTrackerTopic);
+        if (Objects.nonNull(template)) {
+            try{
+                template.addEntity((String)data);
+            } catch (DuplicateKeyException e) {
+                log.warn("DuplicateKeyException, mongo error, duplicate key: blockhash, jsonData={}", data);
+            } catch (MongoWriteException ex) {
+              if (ex.getMessage().contains("duplicate key error")) {
+                log.warn("handleTrc20Trigger in mongo error, duplicate key: blockhash, jsonData={}", data);
+              }
+              else {
+                log.error("handleTrc20Trigger in mongo error ", ex);
+                throw ex;
+              }
+            }  catch (Exception e){
+                log.error("handleTrc20Trigger in mongo error ", e);
                 throw e;
             }
         }
