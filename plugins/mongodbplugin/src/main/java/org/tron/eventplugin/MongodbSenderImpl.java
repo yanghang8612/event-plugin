@@ -34,6 +34,7 @@ public class MongodbSenderImpl{
     private String solidityTopic = "";
 
     private String trc20TrackerTopic = "";
+    private String transferTrackerTopic = "";
     private String freezeTrackerTopic = "";
     private String trc20SolidityTrackerTopic = "";
     private String blockErasedTopic = "";
@@ -151,6 +152,9 @@ public class MongodbSenderImpl{
         mongoManager.createCollection(trc20TrackerTopic);
         createMongoTemplate(trc20TrackerTopic);
 
+        mongoManager.createCollection(transferTrackerTopic);
+        createMongoTemplate(transferTrackerTopic);
+
         mongoManager.createCollection(freezeTrackerTopic);
         createMongoTemplate(freezeTrackerTopic);
 
@@ -243,6 +247,9 @@ public class MongodbSenderImpl{
         }
         else if (triggerType == Constant.TRC20TRACKER_TRIGGER) {
             trc20TrackerTopic = topic;
+        }
+        else if (triggerType == Constant.TRANSFER_TRACKER_TRIGGER) {
+            transferTrackerTopic = topic;
         }
         else if (triggerType == Constant.FREEZE_TRACKER_TRIGGER) {
             freezeTrackerTopic = topic;
@@ -386,6 +393,33 @@ public class MongodbSenderImpl{
               }
             }  catch (Exception e){
                 log.error("handleTrc20Trigger in mongo error ", e);
+                throw e;
+            }
+        }
+    }
+
+
+    public void handleTransferTrigger(Object data) {
+        if (Objects.isNull(data) || Objects.isNull(transferTrackerTopic)){
+            return;
+        }
+
+        MongoTemplate template = mongoTemplateMap.get(transferTrackerTopic);
+        if (Objects.nonNull(template)) {
+            try{
+                template.addEntity((String)data);
+            } catch (DuplicateKeyException e) {
+                log.warn("handleTransferTrigger DuplicateKeyException, mongo error, duplicate key: blockhash, jsonData={}", data);
+            } catch (MongoWriteException ex) {
+              if (ex.getMessage().contains("duplicate key error")) {
+                log.warn("handleTransferTrigger in mongo error, duplicate key: blockhash, jsonData={}", data);
+              }
+              else {
+                log.error("handleTransferTrigger in mongo error ", ex);
+                throw ex;
+              }
+            }  catch (Exception e){
+                log.error("handleTransferTrigger in mongo error ", e);
                 throw e;
             }
         }

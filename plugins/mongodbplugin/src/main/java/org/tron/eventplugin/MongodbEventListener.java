@@ -137,4 +137,18 @@ public class MongodbEventListener implements IPluginEventListener {
             MongodbSenderImpl.getInstance().handleShieldedTrc20SolidityTrigger(data);
         }
     }
+
+    @Override
+    public void handleTransferEvent(Object data) {
+        log.info("  >>>> handleTransferEventt data:{}", data);
+
+        if (Objects.isNull(data)){
+            return;
+        }
+        String triggerData =(String) data;
+
+        if (triggerData.contains(Constant.TRANSFER_TRIGGER_NAME)) {
+            MongodbSenderImpl.getInstance().handleTransferTrigger(data);
+        }
+    }
 }

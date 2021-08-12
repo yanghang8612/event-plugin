@@ -73,6 +73,7 @@ public class PluginLauncher {
             listener.setTopic(Trigger.TRC20TRACKER_TRIGGER, "trc20Tracker");
             listener.setTopic(Trigger.FREEZE_TRACKER_TRIGGER, "freezeTracker");
             listener.setTopic(Trigger.TRC20TRACKER_SOLIDITY_TRIGGER, "trc20TrackerSolidity");
+            listener.setTopic(Trigger.TRANSFER_TRIGGER, "transferTracker");
 
         });
 

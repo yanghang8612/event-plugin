@@ -29,6 +29,7 @@ public class MessageSenderImpl{
     private String trc20TrackerTopic = "";
     private String trc20SolidityTrackerTopic = "";
     private String blockErasedTopic = "";
+    private String transferTrackerTopic = "";
 
 
     private Thread triggerProcessThread;
@@ -64,6 +65,7 @@ public class MessageSenderImpl{
         createProducer(Constant.TRC20TRACKER_TRIGGER);
         createProducer(Constant.TRC20TRACKER_SOLIDITY_TRIGGER);
         createProducer(Constant.BLOCK_ERASE_TRIGGER);
+        createProducer(Constant.TRANSFER_TRIGGER);
 
         triggerProcessThread = new Thread(triggerProcessLoop);
         triggerProcessThread.start();
@@ -95,6 +97,9 @@ public class MessageSenderImpl{
         }
         else if (triggerType == Constant.BLOCK_ERASE_TRIGGER) {
             blockErasedTopic = topic;
+        }
+        else if (triggerType == Constant.TRANSFER_TRIGGER) {
+            transferTrackerTopic = topic;
         }
     }
 
@@ -209,6 +214,14 @@ public class MessageSenderImpl{
         }
         MessageSenderImpl.getInstance().sendKafkaRecord(Constant.TRC20TRACKER_TRIGGER, trc20TrackerTopic, data);
     }
+
+    public void handleTransferTrigger(Object data) {
+        if (Objects.isNull(data) || Objects.isNull(transferTrackerTopic)){
+            return;
+        }
+        MessageSenderImpl.getInstance().sendKafkaRecord(Constant.TRANSFER_TRIGGER, transferTrackerTopic, data);
+    }
+
     public void handleTrc20SolidityTrigger(Object data) {
         if (Objects.isNull(data) || Objects.isNull(trc20SolidityTrackerTopic)){
             return;
@@ -256,6 +269,9 @@ public class MessageSenderImpl{
                         }
                         else if (triggerData.contains(Constant.BLOCK_ERASE_TRIGGER_NAME)) {
                             handleBlockEraseTrigger(triggerData);
+                        }
+                        else if (triggerData.contains(Constant.TRANSFER_TRIGGER_NAME)) {
+                            handleTransferTrigger(triggerData);
                         }
                     } catch (InterruptedException ex) {
                         log.info(ex.getMessage());
