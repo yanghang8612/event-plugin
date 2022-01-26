@@ -13,6 +13,7 @@ public class Constant {
     public static final int SHIELDED_TRC20TRACKER_TRIGGER = 1003;
     public static final int SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER = 1004;
     public static final int TRANSFER_TRACKER_TRIGGER = 1005;
+    public static final int MULTIAUTH_TRACKER_TRIGGER = 1006;
     public static final int FREEZE_TRACKER_TRIGGER = 1010;
 
 
@@ -31,6 +32,7 @@ public class Constant {
     public static final String SHIELDED_TRC20TRACKER_TRIGGER_NAME = "shieldedTRC20Tracker";
     public static final String SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER_NAME = "shieldedTRC20SolidityTracker";
     public static final String TRANSFER_TRIGGER_NAME = "transferTracker";
+    public static final String MULTIAUTH_TRIGGER_NAME = "multiAuthTracker";
 
     private Constant(){}
 }
