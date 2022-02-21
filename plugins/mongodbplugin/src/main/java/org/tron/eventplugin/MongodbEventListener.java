@@ -151,4 +151,17 @@ public class MongodbEventListener implements IPluginEventListener {
             MongodbSenderImpl.getInstance().handleTransferTrigger(data);
         }
     }
+
+    @Override
+    public void handleMultiAuthTrigger(Object data) {
+        log.info("  >>>> handleMultiAuthTrigger data:{}", data);
+        if (Objects.isNull(data)) {
+            return;
+        }
+
+        String triggerData = (String) data;
+        if (triggerData.contains(Constant.MULTIAUTH_TRIGGER_NAME)) {
+            MongodbSenderImpl.getInstance().handleMultiAuthTrigger(data);
+        }
+    }
 }

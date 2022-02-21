@@ -36,6 +36,7 @@ public class MongodbSenderImpl{
     private String trc20TrackerTopic = "";
     private String transferTrackerTopic = "";
     private String freezeTrackerTopic = "";
+    private String multiAuthTrackerTopic = "";
     private String trc20SolidityTrackerTopic = "";
     private String blockErasedTopic = "";
     private String shieldedTRC20TrackerTopic = "";
@@ -158,6 +159,9 @@ public class MongodbSenderImpl{
         mongoManager.createCollection(freezeTrackerTopic);
         createMongoTemplate(freezeTrackerTopic);
 
+        mongoManager.createCollection(multiAuthTrackerTopic);
+        createMongoTemplate(multiAuthTrackerTopic);
+
         mongoManager.createCollection(trc20SolidityTrackerTopic);
         createMongoTemplate(trc20SolidityTrackerTopic);
 
@@ -253,6 +257,9 @@ public class MongodbSenderImpl{
         }
         else if (triggerType == Constant.FREEZE_TRACKER_TRIGGER) {
             freezeTrackerTopic = topic;
+        }
+        else if (triggerType == Constant.MULTIAUTH_TRACKER_TRIGGER) {
+            multiAuthTrackerTopic = topic;
         }
         else if (triggerType == Constant.TRC20TRACKER_SOLIDITY_TRIGGER) {
             trc20SolidityTrackerTopic = topic;
@@ -452,6 +459,30 @@ public class MongodbSenderImpl{
         }
     }
 
+    public void handleMultiAuthTrigger(Object data) {
+        if (Objects.isNull(data) || Objects.isNull(multiAuthTrackerTopic)) {
+            return;
+        }
+
+        MongoTemplate template = mongoTemplateMap.get(multiAuthTrackerTopic);
+        if (Objects.nonNull(template)) {
+            try {
+                template.addEntity((String)data);
+            } catch (DuplicateKeyException e) {
+                log.warn("handleMultiAuthTrigger mongo error, duplicate key: blockhash, jsonData={}", data);
+            } catch (MongoWriteException ex) {
+                if (ex.getMessage().contains("duplicate key error")) {
+                    log.warn("handleMultiAuthTrigger in mongo error, duplicate key: blockhash, jsonData={}", data);
+                } else {
+                    log.error("handleMultiAuthTrigger in mongo error ", ex);
+                    throw ex;
+                }
+            }  catch (Exception e) {
+                log.error("handleMultiAuthTrigger in mongo error ", e);
+                throw e;
+            }
+        }
+    }
 
     public void handleTrc20SolidityTrigger(Object data) {
         if (Objects.isNull(data) || Objects.isNull(trc20TrackerTopic)){
