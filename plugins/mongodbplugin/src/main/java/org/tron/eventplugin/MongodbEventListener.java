@@ -125,6 +125,20 @@ public class MongodbEventListener implements IPluginEventListener {
     }
 
     @Override
+    public void handleStakeBalanceEvent(Object data) {
+        log.info("  >>>> data:{}", data);
+
+        if (Objects.isNull(data)){
+            return;
+        }
+        String triggerData =(String) data;
+
+        if (triggerData.contains(Constant.STAKE_BALANCE_TRIGGER_NAME)) {
+            MongodbSenderImpl.getInstance().handleStakeTrigger(data);
+        }
+    }
+
+    @Override
     public void handleShieldedTRC20Event(Object data) {
         if (Objects.isNull(data)){
             return;

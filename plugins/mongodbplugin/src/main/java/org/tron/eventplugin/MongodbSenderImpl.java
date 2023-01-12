@@ -36,6 +36,7 @@ public class MongodbSenderImpl{
     private String trc20TrackerTopic = "";
     private String transferTrackerTopic = "";
     private String freezeTrackerTopic = "";
+    private String stakeTrackerTopic = "";
     private String multiAuthTrackerTopic = "";
     private String trc20SolidityTrackerTopic = "";
     private String blockErasedTopic = "";
@@ -159,6 +160,9 @@ public class MongodbSenderImpl{
         mongoManager.createCollection(freezeTrackerTopic);
         createMongoTemplate(freezeTrackerTopic);
 
+        mongoManager.createCollection(stakeTrackerTopic);
+        createMongoTemplate(stakeTrackerTopic);
+
         mongoManager.createCollection(multiAuthTrackerTopic);
         createMongoTemplate(multiAuthTrackerTopic);
 
@@ -257,6 +261,9 @@ public class MongodbSenderImpl{
         }
         else if (triggerType == Constant.FREEZE_TRACKER_TRIGGER) {
             freezeTrackerTopic = topic;
+        }
+        else if (triggerType == Constant.STAKE_TRACKER_TRIGGER) {
+            stakeTrackerTopic = topic;
         }
         else if (triggerType == Constant.MULTIAUTH_TRACKER_TRIGGER) {
             multiAuthTrackerTopic = topic;
@@ -439,6 +446,32 @@ public class MongodbSenderImpl{
         }
 
         MongoTemplate template = mongoTemplateMap.get(freezeTrackerTopic);
+        if (Objects.nonNull(template)) {
+            try{
+                template.addEntity((String)data);
+            } catch (DuplicateKeyException e) {
+                log.warn("DuplicateKeyException, mongo error, duplicate key: blockhash, jsonData={}", data);
+            } catch (MongoWriteException ex) {
+              if (ex.getMessage().contains("duplicate key error")) {
+                log.warn("handleTrc20Trigger in mongo error, duplicate key: blockhash, jsonData={}", data);
+              }
+              else {
+                log.error("handleTrc20Trigger in mongo error ", ex);
+                throw ex;
+              }
+            }  catch (Exception e){
+                log.error("handleTrc20Trigger in mongo error ", e);
+                throw e;
+            }
+        }
+    }
+
+    public void handleStakeTrigger(Object data) {
+        if (Objects.isNull(data) || Objects.isNull(stakeTrackerTopic)){
+            return;
+        }
+
+        MongoTemplate template = mongoTemplateMap.get(stakeTrackerTopic);
         if (Objects.nonNull(template)) {
             try{
                 template.addEntity((String)data);
