@@ -25,6 +25,9 @@ public class MessageSenderImpl{
     private String contractEventTopic = "";
     private String contractLogTopic = "";
     private String solidityTopic = "";
+    private String solidityLogTopic = "";
+    private String solidityEventTopic = "";
+
 
     private String trc20TrackerTopic = "";
     private String trc20SolidityTrackerTopic = "";
@@ -62,6 +65,9 @@ public class MessageSenderImpl{
         createProducer(Constant.TRANSACTION_TRIGGER);
         createProducer(Constant.CONTRACTLOG_TRIGGER);
         createProducer(Constant.CONTRACTEVENT_TRIGGER);
+        createProducer(Constant.SOLIDITY_TRIGGER);
+        createProducer(Constant.SOLIDITY_EVENT);
+        createProducer(Constant.SOLIDITY_LOG);
         createProducer(Constant.TRC20TRACKER_TRIGGER);
         createProducer(Constant.TRC20TRACKER_SOLIDITY_TRIGGER);
         createProducer(Constant.BLOCK_ERASE_TRIGGER);
@@ -73,21 +79,21 @@ public class MessageSenderImpl{
         loaded = true;
     }
 
-    public void setTopic(int triggerType, String topic){
-        if (triggerType == Constant.BLOCK_TRIGGER){
+    public void setTopic(int triggerType, String topic) {
+        if (triggerType == Constant.BLOCK_TRIGGER) {
             blockTopic = topic;
-        }
-        else if (triggerType == Constant.TRANSACTION_TRIGGER){
+        } else if (triggerType == Constant.TRANSACTION_TRIGGER) {
             transactionTopic = topic;
-        }
-        else if (triggerType == Constant.CONTRACTEVENT_TRIGGER){
+        } else if (triggerType == Constant.CONTRACTEVENT_TRIGGER) {
             contractEventTopic = topic;
-        }
-        else if (triggerType == Constant.CONTRACTLOG_TRIGGER){
+        } else if (triggerType == Constant.CONTRACTLOG_TRIGGER) {
             contractLogTopic = topic;
-        }
-        else if (triggerType == Constant.SOLIDITY_TRIGGER) {
+        } else if (triggerType == Constant.SOLIDITY_TRIGGER) {
             solidityTopic = topic;
+        } else if (triggerType == Constant.SOLIDITY_EVENT) {
+            solidityEventTopic = topic;
+        } else if (triggerType == Constant.SOLIDITY_LOG) {
+            solidityLogTopic = topic;
         }
         else if (triggerType == Constant.TRC20TRACKER_TRIGGER) {
             trc20TrackerTopic = topic;
@@ -102,7 +108,6 @@ public class MessageSenderImpl{
             transferTrackerTopic = topic;
         }
     }
-
 
     private KafkaProducer createProducer(int eventType){
 
@@ -205,7 +210,19 @@ public class MessageSenderImpl{
         if (Objects.isNull(data) || Objects.isNull(solidityTopic)){
             return;
         }
-        MessageSenderImpl.getInstance().sendKafkaRecord(Constant.SOLIDITY_TRIGGER, contractEventTopic, data);
+        MessageSenderImpl.getInstance().sendKafkaRecord(Constant.SOLIDITY_TRIGGER, solidityTopic, data);
+    }
+    public void handleSolidityLogTrigger(Object data) {
+        if (Objects.isNull(data) || Objects.isNull(solidityLogTopic)){
+            return;
+        }
+        MessageSenderImpl.getInstance().sendKafkaRecord(Constant.SOLIDITY_LOG, solidityLogTopic, data);
+    }
+    public void handleSolidityEventTrigger(Object data) {
+        if (Objects.isNull(data) || Objects.isNull(solidityEventTopic)){
+            return;
+        }
+        MessageSenderImpl.getInstance().sendKafkaRecord(Constant.SOLIDITY_EVENT, solidityEventTopic, data);
     }
 
     public void handlTrc20Trigger(Object data) {
@@ -260,6 +277,12 @@ public class MessageSenderImpl{
                         }
                         else if (triggerData.contains(Constant.SOLIDITY_TRIGGER_NAME)) {
                             handleSolidityTrigger(triggerData);
+                        }
+                        else if (triggerData.contains(Constant.SOLIDITYLOG_TRIGGER_NAME)) {
+                            handleSolidityLogTrigger(triggerData);
+                        }
+                        else if (triggerData.contains(Constant.SOLIDITYEVENT_TRIGGER_NAME)) {
+                            handleSolidityEventTrigger(triggerData);
                         }
                         else if (triggerData.contains(Constant.TRC20TRACKER_TRIGGER_NAME)) {
                             handlTrc20Trigger(triggerData);

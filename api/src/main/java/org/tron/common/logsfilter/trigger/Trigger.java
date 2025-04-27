@@ -17,6 +17,8 @@ public class Trigger {
   public static final int CONTRACTLOG_TRIGGER = 2;
   public static final int CONTRACTEVENT_TRIGGER = 3;
   public static final int SOLIDITY_TRIGGER = 4;
+  public static final int SOLIDITY_EVENT = 5;
+  public static final int SOLIDITY_LOG = 6;
 
   public static final int TRC20TRACKER_TRIGGER = 1000;
   public static final int TRC20TRACKER_SOLIDITY_TRIGGER = 1001;

@@ -1,17 +1,14 @@
-# IDEA
-.idea
-*iml
-.DS_Store
-
-# gradle
-.gradle
 build
-
-# lombok
-out
-
-# Eclipse IDE specific files and folders
-/.project
-/.classpath
-/.settings/
-/.apt_generated/
+/.idea/
+/.gradle/
+/lib/
+.settings/
+build/
+.classpath
+.project
+.DS_Store
+*/build
+*/logs/
+*.log
+/logs
+out/
