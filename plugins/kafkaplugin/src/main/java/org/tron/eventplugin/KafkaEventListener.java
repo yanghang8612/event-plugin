@@ -89,13 +89,17 @@ public class KafkaEventListener implements IPluginEventListener {
     }
 
     @Override
-    public void handleBlockErasedEvent(Object data) {
+    public String getEventFilterList() {
+        return null;
+    }
+
+    @Override
+    public void handleBlockContractLogTrigger(Object data) {
         if (Objects.isNull(data)){
             return;
         }
 
         MessageSenderImpl.getInstance().getTriggerQueue().offer(data);
-
     }
 
     @Override
@@ -163,6 +167,15 @@ public class KafkaEventListener implements IPluginEventListener {
 
     @Override
     public void handleContractEventTrigger(Object data) {
+        if (Objects.isNull(data)){
+            return;
+        }
+
+        MessageSenderImpl.getInstance().getTriggerQueue().offer(data);
+    }
+
+    @Override
+    public void handleJustLendTrackerTrigger(Object data) {
         if (Objects.isNull(data)){
             return;
         }

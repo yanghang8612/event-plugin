@@ -4,6 +4,9 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.mongodb.DuplicateKeyException;
 import com.mongodb.MongoWriteException;
+import com.mongodb.client.model.Filters;
+import java.util.List;
+import org.bson.Document;
 import org.pf4j.util.StringUtils;
 
 import java.io.IOException;
@@ -48,16 +51,21 @@ public class MongodbSenderImpl {
   private String solidityEventTopic = "";
   private String solidityLogTopic = "";
 
+  // === DeFi Feature ===
+  private String blockContractLogTopic = "";
+  private final String filterCollection = "filters";
+
+  // === TronLink Feature ===
   private String trc20TrackerTopic = "";
   private String transferTrackerTopic = "";
   private String freezeTrackerTopic = "";
   private String stakeTrackerTopic = "";
   private String multiAuthTrackerTopic = "";
-  private String trc20SolidityTrackerTopic = "";
-  private String blockErasedTopic = "";
   private String shieldedTRC20TrackerTopic = "";
   private String shieldedSolidityTRC20TrackerTopic = "";
 
+  // === JustLend Feature ===
+  private String justlendTrackerTopic = "";
 
   private Thread triggerProcessThread;
   private boolean isRunTriggerProcessThread = true;
@@ -187,15 +195,22 @@ public class MongodbSenderImpl {
       mongoManager.createCollection(solidityTopic);
       mongoManager.createCollection(solidityEventTopic);
       mongoManager.createCollection(solidityLogTopic);
+
+      // === DeFi Feature ===
+      mongoManager.createCollection(filterCollection);
+      mongoManager.createCollection(blockContractLogTopic);
+
+      // === TronLink Feature ===
       mongoManager.createCollection(trc20TrackerTopic);
       mongoManager.createCollection(transferTrackerTopic);
       mongoManager.createCollection(freezeTrackerTopic);
       mongoManager.createCollection(stakeTrackerTopic);
       mongoManager.createCollection(multiAuthTrackerTopic);
-      mongoManager.createCollection(trc20SolidityTrackerTopic);
-      mongoManager.createCollection(blockErasedTopic);
       mongoManager.createCollection(shieldedSolidityTRC20TrackerTopic);
       mongoManager.createCollection(shieldedTRC20TrackerTopic);
+
+      // === JustLend Feature ===
+      mongoManager.createCollection(justlendTrackerTopic);
     }
 
     createMongoTemplate(blockTopic);
@@ -205,15 +220,22 @@ public class MongodbSenderImpl {
     createMongoTemplate(solidityTopic);
     createMongoTemplate(solidityEventTopic);
     createMongoTemplate(solidityLogTopic);
+
+    // === DeFi Feature ===
+    createMongoTemplate(filterCollection);
+    createMongoTemplate(blockContractLogTopic);
+
+    // === TronLink Feature ===
     createMongoTemplate(trc20TrackerTopic);
     createMongoTemplate(transferTrackerTopic);
     createMongoTemplate(freezeTrackerTopic);
     createMongoTemplate(stakeTrackerTopic);
     createMongoTemplate(multiAuthTrackerTopic);
-    createMongoTemplate(trc20SolidityTrackerTopic);
-    createMongoTemplate(blockErasedTopic);
     createMongoTemplate(shieldedSolidityTRC20TrackerTopic);
     createMongoTemplate(shieldedTRC20TrackerTopic);
+
+    // === JustLend Feature ===
+    createMongoTemplate(justlendTrackerTopic);
   }
 
   private void loadMongoConfig() {
@@ -292,6 +314,8 @@ public class MongodbSenderImpl {
       solidityEventTopic = topic;
     } else if (triggerType == Constant.SOLIDITY_LOG_TRIGGER) {
       solidityLogTopic = topic;
+    } else if (triggerType == Constant.BLOCK_CONTRACTLOG_TRIGGER) {
+      blockContractLogTopic = topic;
     } else if (triggerType == Constant.TRC20TRACKER_TRIGGER) {
       trc20TrackerTopic = topic;
     } else if (triggerType == Constant.TRANSFER_TRACKER_TRIGGER) {
@@ -302,14 +326,12 @@ public class MongodbSenderImpl {
       stakeTrackerTopic = topic;
     } else if (triggerType == Constant.MULTIAUTH_TRACKER_TRIGGER) {
       multiAuthTrackerTopic = topic;
-    } else if (triggerType == Constant.TRC20TRACKER_SOLIDITY_TRIGGER) {
-      trc20SolidityTrackerTopic = topic;
-    } else if (triggerType == Constant.BLOCK_ERASE_TRIGGER) {
-      blockErasedTopic = topic;
     } else if (triggerType == Constant.SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER) {
       shieldedSolidityTRC20TrackerTopic = topic;
     } else if (triggerType == Constant.SHIELDED_TRC20TRACKER_TRIGGER) {
       shieldedTRC20TrackerTopic = topic;
+    } else if (triggerType == Constant.JUSTLEND_TRACKER_TRIGGER) {
+      justlendTrackerTopic = topic;
     }
   }
 
@@ -496,6 +518,29 @@ public class MongodbSenderImpl {
     }
   }
 
+  public void handleBlockContractLogTrigger(Object data) {
+    if (Objects.isNull(data) || Objects.isNull(blockContractLogTopic)) {
+      return;
+    }
+
+    MongoTemplate template = mongoTemplateMap.get(blockContractLogTopic);
+    if (Objects.nonNull(template)) {
+      JSONObject trigger = JSONObject.parseObject((String) data);
+      String blockHash = trigger.getString("blockHash");
+      long blockNumber = trigger.getLong("blockNumber");
+
+      List<Document> exists = template.queryByCondition(Filters.and(
+          Filters.eq("blockNumber", blockNumber),
+          Filters.eq("blockHash", blockHash)));
+      if(exists == null || exists.isEmpty()) {
+        template.addEntity((String) data);
+      } else {
+        Object transactionList = trigger.get("transactionList");
+        // update exist transactions in mongo
+        template.update("transactionList", transactionList, "blockHash", blockHash);
+      }
+    }
+  }
 
   public void handleTrc20Trigger(Object data) {
     if (Objects.isNull(data) || Objects.isNull(trc20TrackerTopic)) {
@@ -624,28 +669,6 @@ public class MongodbSenderImpl {
     }
   }
 
-  public void handleTrc20SolidityTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(trc20TrackerTopic)) {
-      return;
-    }
-
-    //MongoTemplate template = mongoTemplateMap.get(trc20SolidityTrackerTopic);
-    MongoTemplate template = mongoTemplateMap.get(trc20TrackerTopic);
-    if (Objects.nonNull(template)) {
-      try {
-        String dataStr = (String)data;
-        JSONObject jsStr = JSONObject.parseObject(dataStr);
-        String blockHash = jsStr.getString("blockHash");
-        if (StringUtils.isNotNullOrEmpty(blockHash)) {
-          template.update("solidity",new Boolean(true),"blockHash",blockHash);
-        }
-      } catch (Exception ex) {
-        log.error("handleTrc20SolidityTrigger in mongo error ", ex);
-        throw ex;
-      }
-    }
-  }
-
   public void handleShieldedTrc20Trigger(Object data) {
     if (Objects.isNull(data) || Objects.isNull(shieldedTRC20TrackerTopic)) {
       return;
@@ -685,20 +708,23 @@ public class MongodbSenderImpl {
     }
   }
 
-
-
-  public void handleBlockEraseTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(blockErasedTopic)) {
+  public void handleJustLendTrackerTrigger(Object data) {
+    if (Objects.isNull(data) || Objects.isNull(justlendTrackerTopic)) {
       return;
     }
 
-    MongoTemplate template = mongoTemplateMap.get(blockErasedTopic);
+    MongoTemplate template = mongoTemplateMap.get(justlendTrackerTopic);
     if (Objects.nonNull(template)) {
       try {
-        template.addEntity((String)data);
-      } catch (Exception e) {
-        log.error("handleBlockEraseTrigger in mongo error ", e);
-        throw e;
+        String dataStr = (String)data;
+        JSONObject jsStr = JSONObject.parseObject(dataStr);
+        String blockHash = jsStr.getString("blockHash");
+        if (StringUtils.isNotNullOrEmpty(blockHash)) {
+          template.update("solidity",new Boolean(true),"blockHash",blockHash);
+        }
+      } catch (Exception ex) {
+        log.error("handleJustLendTrackerTrigger in mongo error ", ex);
+        throw ex;
       }
     }
   }
@@ -727,16 +753,16 @@ public class MongodbSenderImpl {
               handleSolidityLogTrigger(triggerData);
             } else if (triggerData.contains(Constant.SOLIDITYEVENT_TRIGGER_NAME)) {
               handleSolidityEventTrigger(triggerData);
+            } else if (triggerData.contains(Constant.BLOCK_CONTRACTLOG_TRIGGER_NAME)) {
+              handleBlockContractLogTrigger(triggerData);
             } else if (triggerData.contains(Constant.TRC20TRACKER_TRIGGER_NAME)) {
               handleTrc20Trigger(triggerData);
-            } else if (triggerData.contains(Constant.TRC20TRACKER_SOLIDITY_TRIGGER_NAME)) {
-              handleTrc20SolidityTrigger(triggerData);
-            } else if (triggerData.contains(Constant.BLOCK_ERASE_TRIGGER_NAME)) {
-              handleBlockEraseTrigger(triggerData);
             } else if (triggerData.contains(Constant.SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER_NAME)) {
               handleShieldedTrc20SolidityTrigger(triggerData);
             } else if (triggerData.contains(Constant.SHIELDED_TRC20TRACKER_TRIGGER_NAME)) {
               handleShieldedTrc20Trigger(triggerData);
+            } else if (triggerData.contains(Constant.JUSTLEND_TRACKER_TRIGGER_NAME)) {
+              handleJustLendTrackerTrigger(triggerData);
             }
           } catch (InterruptedException ex) {
             log.info(ex.getMessage());
@@ -748,4 +774,14 @@ public class MongodbSenderImpl {
           }
         }
       };
+
+    public String getEventFilterList(){
+        MongoTemplate template = mongoTemplateMap.get(filterCollection);
+        if (Objects.nonNull(template)) {
+          List<Document> filters = template.queryByCondition(Filters.exists("disable", false));
+          return com.mongodb.util.JSON.serialize(filters);
+        }
+        return null;
+    }
+
 }

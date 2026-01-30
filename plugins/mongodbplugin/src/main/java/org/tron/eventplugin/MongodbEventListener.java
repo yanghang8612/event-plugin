@@ -108,13 +108,17 @@ public class MongodbEventListener implements IPluginEventListener {
     }
 
     @Override
-    public void handleBlockErasedEvent(Object data) {
+    public String getEventFilterList() {
+        return MongodbSenderImpl.getInstance().getEventFilterList();
+    }
+
+    @Override
+    public void handleBlockContractLogTrigger(Object data) {
         if (Objects.isNull(data)){
             return;
         }
 
-        MongodbSenderImpl.getInstance().handleBlockEraseTrigger(data);
-
+        MongodbSenderImpl.getInstance().getTriggerQueue().offer(data);
     }
 
     @Override
@@ -128,9 +132,6 @@ public class MongodbEventListener implements IPluginEventListener {
 
         if (triggerData.contains(Constant.TRC20TRACKER_TRIGGER_NAME)) {
             MongodbSenderImpl.getInstance().handleTrc20Trigger(data);
-        }
-        else if (triggerData.contains(Constant.TRC20TRACKER_SOLIDITY_TRIGGER_NAME)) {
-            MongodbSenderImpl.getInstance().handleTrc20SolidityTrigger(data);
         }
     }
 
@@ -200,6 +201,19 @@ public class MongodbEventListener implements IPluginEventListener {
         String triggerData = (String) data;
         if (triggerData.contains(Constant.MULTIAUTH_TRIGGER_NAME)) {
             MongodbSenderImpl.getInstance().handleMultiAuthTrigger(data);
+        }
+    }
+
+    @Override
+    public void handleJustLendTrackerTrigger(Object data) {
+        log.info("  >>>> handleJustLendTrackerTrigger data:{}", data);
+        if (Objects.isNull(data)) {
+            return;
+        }
+
+        String triggerData = (String) data;
+        if (triggerData.contains(Constant.JUSTLEND_TRACKER_TRIGGER_NAME)) {
+            MongodbSenderImpl.getInstance().handleJustLendTrackerTrigger(data);
         }
     }
 }
