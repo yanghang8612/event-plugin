@@ -187,6 +187,15 @@ public class MongodbSenderImpl {
       indexOptions.put("contractAddress", false);
       mongoManager.createCollection(solidityLogTopic, indexOptions);
       mongoManager.createCollection(contractLogTopic, indexOptions);
+
+      // === DeFi Feature ===
+      indexOptions = new HashMap<>();
+      indexOptions.put("name", true);
+      mongoManager.createCollection(filterCollection, indexOptions);
+
+      indexOptions = new HashMap<>();
+      indexOptions.put("blockNumber", false);
+      mongoManager.createCollection(blockContractLogTopic, indexOptions);
     } else {
       mongoManager.createCollection(blockTopic);
       mongoManager.createCollection(transactionTopic);
@@ -739,7 +748,9 @@ public class MongodbSenderImpl {
               continue;
             }
 
-            if (triggerData.contains(Constant.BLOCK_TRIGGER_NAME)) {
+            if (triggerData.contains(Constant.BLOCK_CONTRACTLOG_TRIGGER_NAME)) {
+              handleBlockContractLogTrigger(triggerData);
+            } else if (triggerData.contains(Constant.BLOCK_TRIGGER_NAME)) {
               handleBlockEvent(triggerData);
             } else if (triggerData.contains(Constant.TRANSACTION_TRIGGER_NAME)) {
               handleTransactionTrigger(triggerData);
@@ -753,8 +764,6 @@ public class MongodbSenderImpl {
               handleSolidityLogTrigger(triggerData);
             } else if (triggerData.contains(Constant.SOLIDITYEVENT_TRIGGER_NAME)) {
               handleSolidityEventTrigger(triggerData);
-            } else if (triggerData.contains(Constant.BLOCK_CONTRACTLOG_TRIGGER_NAME)) {
-              handleBlockContractLogTrigger(triggerData);
             } else if (triggerData.contains(Constant.TRC20TRACKER_TRIGGER_NAME)) {
               handleTrc20Trigger(triggerData);
             } else if (triggerData.contains(Constant.SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER_NAME)) {
