@@ -725,15 +725,19 @@ public class MongodbSenderImpl {
     MongoTemplate template = mongoTemplateMap.get(justlendTrackerTopic);
     if (Objects.nonNull(template)) {
       try {
-        String dataStr = (String)data;
-        JSONObject jsStr = JSONObject.parseObject(dataStr);
-        String blockHash = jsStr.getString("blockHash");
-        if (StringUtils.isNotNullOrEmpty(blockHash)) {
-          template.update("solidity",new Boolean(true),"blockHash",blockHash);
+        template.addEntity((String) data);
+      } catch (DuplicateKeyException e) {
+        log.warn("DuplicateKeyException, mongo error, duplicate key: blockhash, jsonData={}", data);
+      } catch (MongoWriteException ex) {
+        if (ex.getMessage().contains("duplicate key error")) {
+          log.warn("handleJustLendTrackerTrigger in mongo error, duplicate key: blockhash, jsonData={}", data);
+        } else {
+          log.error("handleJustLendTrackerTrigger in mongo error ", ex);
+          throw ex;
         }
-      } catch (Exception ex) {
-        log.error("handleJustLendTrackerTrigger in mongo error ", ex);
-        throw ex;
+      } catch (Exception e) {
+        log.error("handleJustLendTrackerTrigger in mongo error ", e);
+        throw e;
       }
     }
   }
