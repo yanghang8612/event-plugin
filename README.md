@@ -1,93 +1,199 @@
-# event-plugin
+# Tron eventsubscribe plugin
+
+This is an implementation of Tron eventsubscribe model. 
+
+* **api** module defines IPluginEventListener, a protocol between Java-tron and event plugin. 
+* **app** module is an example for loading plugin, developers could use it for debugging.
+* **kafkaplugin** module is the implementation for kafka, it implements IPluginEventListener, it receives events subscribed from Java-tron and relay events to kafka server. 
+* **mongodbplugin** mongodbplugin module is the implementation for mongodb. 
+### Setup/Build
+
+1. Clone the repo
+2. Go to eventplugin `cd eventplugin` 
+3. run `./gradlew build`
+
+* This will produce plugin zips, named `plugin-kafka-1.0.0.zip` and `plugin-mongodb-1.0.0.zip`, located in the `eventplugin/build/plugins/` directory.
 
 
+### Edit **config.conf** of Java-tron, add the following fileds:
+```
+event.subscribe = {
+    path = "" // absolute path of plugin
+    server = "" // target server address to receive event triggers
+    dbconfig = "" // dbname|username|password, if you want to create indexes for collections when the collections are not exist, you can add version and set it to 2, as dbname|username|password|version
+    topics = [
+        {
+          triggerName = "block" // block trigger, the value can't be modified
+          enable = false
+          topic = "block" // plugin topic, the value could be modified
+          solidified = true // if set true, just need solidified block, default is false
+        },
+        {
+          triggerName = "transaction"
+          enable = false
+          topic = "transaction"
+          solidified = true
+          ethCompatible = true // if set true, add transactionIndex, cumulativeEnergyUsed, preCumulativeLogCount, logList, energyUnitPrice, default is false
+        },
+        {
+          triggerName = "contractevent"
+          enable = true
+          topic = "contractevent"
+        },
+        {
+          triggerName = "contractlog"
+          enable = true
+          topic = "contractlog"
+          redundancy = true // if set true, contractevent will also be regarded as contractlog
+        },
+        {
+          triggerName = "solidity" // solidity block trigger(just include solidity block number and timestamp), the value can't be modified
+          enable = true            // the default value is true
+          topic = "solidity"
+        },
+        {
+          triggerName = "solidityevent"
+          enable = false
+          topic = "solidityevent"
+        },
+        {
+          triggerName = "soliditylog"
+          enable = false
+          topic = "soliditylog"
+          redundancy = true // if set true, solidityevent will also be regarded as soliditylog
+        }
+    ]
 
-## Getting started
+    filter = {
+       fromblock = "" // the value could be "", "earliest" or a specified block number as the beginning of the queried range
+       toblock = "" // the value could be "", "latest" or a specified block number as end of the queried range
+       contractAddress = [
+           "" // contract address you want to subscribe, if it's set to "", you will receive contract logs/events with any contract address.
+       ]
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+       contractTopic = [
+           "" // contract topic you want to subscribe, if it's set to "", you will receive contract logs/events with any contract topic.
+       ]
+    }
+}
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
 
 ```
-cd existing_repo
-git remote add origin https://g.teches.link/chaint/event-plugin/event-plugin.git
-git branch -M main
-git push -uf origin main
+ * **path**: is the absolute path of "plugin-kafka-1.0.0.zip" or "plugin-mongodb-1.0.0.zip"
+ * **server**: Kafka(or MongoDB) server address, the default port is 9092(MongoDB is 27017)
+ * **dbconfig**: db configuration information for mongodb, if using kafka, delete this one; if using Mongodb, add like that dbname|username|password or dbname|username|password|version if you want to create indexes when init
+ * **topics**: each event type maps to one Kafka topic(or MongoDB collection), we support seven event types subscribing, block, transaction, contractlog, contractevent, solidity, soliditylog and solidityevent.   
+   **triggerName**: the trigger type, the value can't be modified.  
+   **enable**: plugin can receive nothing if the value is false.  
+   **topic**: the value is the kafka topic to receive events. Make sure it has been created and Kafka process is running  
+   **solidified**: if just need solidified data, just works for block and transaction  
+   **redundancy**: if will also trigger event as log, just works for contractlog and soliditylog   
+   **ethCompatible**: if set to true, will add some fields to transaction: transactionIndex, cumulativeEnergyUsed, preCumulativeLogCount, logList, energyUnitPrice
+   
+ * **filter**: filter condition for process trigger.
+ **note**: if the server is not 127.0.0.1, pls set some properties in config/server.properties file  
+           remove comment and set listeners=PLAINTEXT://:9092  
+           remove comment and set advertised.listeners to PLAINTEXT://host_ip:9092 
+
+##### Install Kafka
+**On Mac**:
+```
+brew install kafka
 ```
 
-## Integrate with your tools
+**On Linux**:
+```
+cd /usr/local
+wget http://archive.apache.org/dist/kafka/0.10.2.2/kafka_2.10-0.10.2.2.tgz
+tar -xzvf kafka_2.10-0.10.2.2.tgz 
+mv kafka_2.10-0.10.2.2 kafka
 
-* [Set up project integrations](https://g.teches.link/chaint/event-plugin/event-plugin/-/settings/integrations)
+add "export PATH=$PATH:/usr/local/kafka/bin" to end of /etc/profile
+source /etc/profile
 
-## Collaborate with your team
+```
+**Note**: make sure the version of Kafka is the same as the version set in build.gradle of eventplugin project.(kafka_2.10-0.10.2.2 kafka)
 
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+##### Run Kafka
+**On Mac**:
+```
+zookeeper-server-start /usr/local/etc/kafka/zookeeper.properties & kafka-server-start /usr/local/etc/kafka/server.properties
+```
 
-## Test and Deploy
+**On Linux**:
+```
+zookeeper-server-start.sh /usr/local/kafka/config/zookeeper.properties &
+Sleep about 3 seconds 
+kafka-server-start.sh /usr/local/kafka/config/server.properties &
+```
 
-Use the built-in continuous integration in GitLab.
+#### Create topics to receive events, the topic is defined in config.conf
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+**On Mac**:
+```
+kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic block
+kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic transaction
+kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic contractlog
+kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic contractevent
+kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic solidity
+kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic solidityevent
+kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic soliditylog
+```
 
-***
+**On Linux**:
+```
+kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic block
+kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic transaction
+kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic contractlog
+kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic contractevent
+kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic solidity
+kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic solidityevent
+kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic soliditylog
+```
 
-# Editing this README
+#### Kafka consumer
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+**On Mac**:
+```
+kafka-console-consumer --bootstrap-server localhost:9092  --topic block
+kafka-console-consumer --bootstrap-server localhost:9092  --topic transaction
+kafka-console-consumer --bootstrap-server localhost:9092  --topic contractlog
+kafka-console-consumer --bootstrap-server localhost:9092  --topic contractevent
+kafka-console-consumer --bootstrap-server localhost:9092  --topic solidity
+kafka-console-consumer --bootstrap-server localhost:9092  --topic solidityevent
+kafka-console-consumer --bootstrap-server localhost:9092  --topic soliditylog
+```
 
-## Suggestions for a good README
+**On Linux**:
+```
+kafka-console-consumer.sh --zookeeper localhost:2181 --topic block
+kafka-console-consumer.sh --zookeeper localhost:2181 --topic transaction
+kafka-console-consumer.sh --zookeeper localhost:2181 --topic contractlog
+kafka-console-consumer.sh --zookeeper localhost:2181 --topic contractevent
+kafka-console-consumer.sh --zookeeper localhost:2181 --topic solidity
+kafka-console-consumer.sh --zookeeper localhost:2181 --topic solidityevent
+kafka-console-consumer.sh --zookeeper localhost:2181 --topic soliditylog
+```
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+### Load plugin in Java-tron
+* add --es to command line, for example:
+```
+ java -jar FullNode.jar -c config.conf --es 
+```
 
-## Name
-Choose a self-explaining name for your project.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+### Event filter
+which is defined in config.conf, path: event.subscribe
+```
+filter = {
+       fromblock = "" // the value could be "", "earliest" or a specified block number as the beginning of the queried range
+       toblock = "" // the value could be "", "latest" or a specified block number as end of the queried range
+       contractAddress = [
+           "TVkNuE1BYxECWq85d8UR9zsv6WppBns9iH" // contract address you want to subscribe, if it's set to "", you will receive contract logs/events with any contract address.
+       ]
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+       contractTopic = [
+           "f0f1e23ddce8a520eaa7502e02fa767cb24152e9a86a4bf02529637c4e57504b" // contract topic you want to subscribe, if it's set to "", you will receive contract logs/events with any contract topic.
+       ]
+    }
+```
