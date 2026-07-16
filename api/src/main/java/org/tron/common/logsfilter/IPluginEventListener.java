@@ -3,55 +3,58 @@ package org.tron.common.logsfilter;
 import org.pf4j.ExtensionPoint;
 
 public interface IPluginEventListener extends ExtensionPoint {
-    void setServerAddress(String address);
 
-    void setTopic(int eventType, String topic);
+  void setServerAddress(String address);
 
-    void setDBConfig(String dbConfig);
+  void setTopic(int eventType, String topic);
 
-    // start should be called after setServerAddress, setTopic, setDBConfig
-    void start();
+  void setDBConfig(String dbConfig);
 
-    void handleBlockEvent(Object data);
+  // start should be called after setServerAddress, setTopic, setDBConfig
+  void start();
 
-    void handleTransactionTrigger(Object data);
+  void stop();
 
-    void handleContractLogTrigger(Object data);
+  void handleBlockEvent(Object data);
 
-    void handleContractEventTrigger(Object data);
+  void handleTransactionTrigger(Object data);
 
-    void handleSolidityTrigger(Object trigger);
+  void handleContractLogTrigger(Object data);
 
-    void handleSolidityLogTrigger(Object trigger);
+  void handleContractEventTrigger(Object data);
 
-    void handleSolidityEventTrigger(Object trigger);
+  void handleSolidityTrigger(Object trigger);
 
-    int getPendingSize();
+  void handleSolidityLogTrigger(Object trigger);
 
-    // === DeFi Feature ===
-    String getEventFilterList();
+  void handleSolidityEventTrigger(Object trigger);
 
-    // === DeFi Feature ===
-    void handleBlockContractLogTrigger(Object trigger);
+  int getPendingSize();
 
-    // === TronLink Feature ===
-    void handleTRC20Event(Object trigger);
+  // === DeFi Feature ===
+  String getEventFilterList();
 
-    // === TronLink Feature ===
-    void handleFreezeBalanceEvent(Object trigger);
+  // === DeFi Feature ===
+  void handleBlockContractLogTrigger(Object trigger);
 
-    // === TronLink Feature ===
-    void handleStakeBalanceEvent(Object trigger);
+  // === TronLink Feature ===
+  void handleTRC20Event(Object trigger);
 
-    // === TronLink Feature ===
-    void handleShieldedTRC20Event(Object trigger);
+  // === TronLink Feature ===
+  void handleFreezeBalanceEvent(Object trigger);
 
-    // === TronLink Feature ===
-    void handleTransferEvent(Object trigger);
+  // === TronLink Feature ===
+  void handleStakeBalanceEvent(Object trigger);
 
-    // === TronLink Feature ===
-    void handleMultiAuthTrigger(Object data);
+  // === TronLink Feature ===
+  void handleShieldedTRC20Event(Object trigger);
 
-    // === JustLend Feature ===
-    void handleJustLendTrackerTrigger(Object data);
+  // === TronLink Feature ===
+  void handleTransferEvent(Object trigger);
+
+  // === TronLink Feature ===
+  void handleMultiAuthTrigger(Object data);
+
+  // === JustLend Feature ===
+  void handleJustLendTrackerTrigger(Object data);
 }

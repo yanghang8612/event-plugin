@@ -1,46 +1,42 @@
 package org.tron.eventplugin;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.DuplicateKeyException;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
-import java.util.List;
-import org.bson.Document;
-import org.pf4j.util.StringUtils;
-
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
 import org.pf4j.util.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.tron.mongodb.MongoConfig;
 import org.tron.mongodb.MongoManager;
 import org.tron.mongodb.MongoTemplate;
 
-public class MongodbSenderImpl {
+@Slf4j(topic = "event")
+public class MongodbSenderImpl implements AutoCloseable {
 
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static MongodbSenderImpl instance = null;
-  private static final Logger log = LoggerFactory.getLogger(MongodbSenderImpl.class);
+
   @Getter
   BlockingQueue<Runnable> queue = new LinkedBlockingQueue<Runnable>();
-  private ExecutorService service = new ThreadPoolExecutor(8, 8,
-    0L, TimeUnit.MILLISECONDS, queue);
+  private final ExecutorService service = new ThreadPoolExecutor(8, 8,
+      0L, TimeUnit.MILLISECONDS, queue);
 
   private boolean loaded = false;
+  @Getter
   private BlockingQueue<Object> triggerQueue = new LinkedBlockingQueue<>();
 
   private String blockTopic = "";
@@ -88,7 +84,6 @@ public class MongodbSenderImpl {
         }
       }
     }
-
     return instance;
   }
 
@@ -108,7 +103,7 @@ public class MongodbSenderImpl {
     version = 1;
 
     if (params.length == 4) {
-      version = Integer.valueOf(params[3]);
+      version = Integer.parseInt(params[3]);
     }
 
     loadMongoConfig();
@@ -124,14 +119,14 @@ public class MongodbSenderImpl {
       return;
     }
 
-    String mongoHostName = "";
-    int mongoPort = -1;
+    String mongoHostName;
+    int mongoPort;
 
     try {
       mongoHostName = params[0];
-      mongoPort = Integer.valueOf(params[1]);
+      mongoPort = Integer.parseInt(params[1]);
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("SetServerAddress failed", e);
       return;
     }
 
@@ -144,7 +139,6 @@ public class MongodbSenderImpl {
   }
 
   public void init() {
-
     if (loaded) {
       return;
     }
@@ -159,7 +153,6 @@ public class MongodbSenderImpl {
 
     triggerProcessThread = new Thread(triggerProcessLoop);
     triggerProcessThread.start();
-
     loaded = true;
   }
 
@@ -266,7 +259,7 @@ public class MongodbSenderImpl {
       properties.load(input);
 
       int connectionsPerHost = Integer.parseInt(properties.getProperty("mongo.connectionsPerHost"));
-      int threadsAllowedToBlockForConnectionMultiplie = Integer.parseInt(
+      int threadsAllowedToBlockForConnectionMultiplier = Integer.parseInt(
           properties.getProperty("mongo.threadsAllowedToBlockForConnectionMultiplier"));
 
       mongoConfig.setDbName(dbName);
@@ -275,16 +268,13 @@ public class MongodbSenderImpl {
       mongoConfig.setVersion(version);
       mongoConfig.setConnectionsPerHost(connectionsPerHost);
       mongoConfig.setThreadsAllowedToBlockForConnectionMultiplier(
-          threadsAllowedToBlockForConnectionMultiplie);
-    } catch (IOException e) {
-      e.printStackTrace();
+          threadsAllowedToBlockForConnectionMultiplier);
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("LoadMongoConfig failed", e);
     }
   }
 
   private MongoTemplate createMongoTemplate(final String collectionName) {
-
     MongoTemplate template = mongoTemplateMap.get(collectionName);
     if (Objects.nonNull(template)) {
       return template;
@@ -303,59 +293,75 @@ public class MongodbSenderImpl {
     };
 
     mongoTemplateMap.put(collectionName, template);
-
     return template;
   }
 
-
   public void setTopic(int triggerType, String topic) {
-    if (triggerType == Constant.BLOCK_TRIGGER) {
-      blockTopic = topic;
-    } else if (triggerType == Constant.TRANSACTION_TRIGGER) {
-      transactionTopic = topic;
-    } else if (triggerType == Constant.CONTRACTEVENT_TRIGGER) {
-      contractEventTopic = topic;
-    } else if (triggerType == Constant.CONTRACTLOG_TRIGGER) {
-      contractLogTopic = topic;
-    } else if (triggerType == Constant.SOLIDITY_TRIGGER) {
-      solidityTopic = topic;
-    } else if (triggerType == Constant.SOLIDITY_EVENT_TRIGGER) {
-      solidityEventTopic = topic;
-    } else if (triggerType == Constant.SOLIDITY_LOG_TRIGGER) {
-      solidityLogTopic = topic;
-    } else if (triggerType == Constant.BLOCK_CONTRACTLOG_TRIGGER) {
-      blockContractLogTopic = topic;
-    } else if (triggerType == Constant.TRC20TRACKER_TRIGGER) {
-      trc20TrackerTopic = topic;
-    } else if (triggerType == Constant.TRANSFER_TRACKER_TRIGGER) {
-      transferTrackerTopic = topic;
-    } else if (triggerType == Constant.FREEZE_TRACKER_TRIGGER) {
-      freezeTrackerTopic = topic;
-    } else if (triggerType == Constant.STAKE_TRACKER_TRIGGER) {
-      stakeTrackerTopic = topic;
-    } else if (triggerType == Constant.MULTIAUTH_TRACKER_TRIGGER) {
-      multiAuthTrackerTopic = topic;
-    } else if (triggerType == Constant.SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER) {
-      shieldedSolidityTRC20TrackerTopic = topic;
-    } else if (triggerType == Constant.SHIELDED_TRC20TRACKER_TRIGGER) {
-      shieldedTRC20TrackerTopic = topic;
-    } else if (triggerType == Constant.JUSTLEND_TRACKER_TRIGGER) {
-      justlendTrackerTopic = topic;
+    EventTopic eventTopic = EventTopic.getEventTopicByType(triggerType, topic);
+    if (eventTopic == null) {
+      log.error("Unknown trigger type {}", triggerType);
+      return;
     }
-  }
-
-  public void close() {
-  }
-
-  public BlockingQueue<Object> getTriggerQueue() {
-    return triggerQueue;
+    switch (eventTopic) {
+      case BLOCK_TRIGGER:
+        blockTopic = topic;
+        break;
+      case TRANSACTION_TRIGGER:
+        transactionTopic = topic;
+        break;
+      case CONTRACT_EVENT_TRIGGER:
+        contractEventTopic = topic;
+        break;
+      case CONTRACT_LOG_TRIGGER:
+        contractLogTopic = topic;
+        break;
+      case SOLIDITY_TRIGGER:
+        solidityTopic = topic;
+        break;
+      case SOLIDITY_EVENT:
+        solidityEventTopic = topic;
+        break;
+      case SOLIDITY_LOG:
+        solidityLogTopic = topic;
+        break;
+      case BLOCK_CONTRACT_LOG_TRIGGER:
+        blockContractLogTopic = topic;
+        break;
+      case TRC20TRACKER_TRIGGER:
+        trc20TrackerTopic = topic;
+        break;
+      case TRANSFER_TRACKER_TRIGGER:
+      case TRANSFER_TRIGGER:
+        transferTrackerTopic = topic;
+        break;
+      case FREEZE_TRACKER_TRIGGER:
+        freezeTrackerTopic = topic;
+        break;
+      case STAKE_TRACKER_TRIGGER:
+        stakeTrackerTopic = topic;
+        break;
+      case MULTIAUTH_TRACKER_TRIGGER:
+        multiAuthTrackerTopic = topic;
+        break;
+      case SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER:
+        shieldedSolidityTRC20TrackerTopic = topic;
+        break;
+      case SHIELDED_TRC20TRACKER_TRIGGER:
+        shieldedTRC20TrackerTopic = topic;
+        break;
+      case JUSTLEND_TRACKER_TRIGGER:
+        justlendTrackerTopic = topic;
+        break;
+      case BLOCK_ERASE_TRIGGER:
+        break;
+    }
   }
 
   public void upsertEntityLong(MongoTemplate template, Object data, String indexKey) {
     String dataStr = (String) data;
     try {
-      JSONObject jsStr = JSON.parseObject(dataStr);
-      Long indexValue = jsStr.getLong(indexKey);
+      JsonNode jsStr = OBJECT_MAPPER.readTree(dataStr);
+      Long indexValue = getLong(jsStr, indexKey);
       if (indexValue != null) {
         template.upsertEntity(indexKey, indexValue, dataStr);
       } else {
@@ -369,73 +375,64 @@ public class MongodbSenderImpl {
   public void upsertEntityString(MongoTemplate template, Object data, String indexKey) {
     String dataStr = (String) data;
     try {
-      JSONObject jsStr = JSON.parseObject(dataStr);
-      String indexValue = jsStr.getString(indexKey);
+      JsonNode jsStr = OBJECT_MAPPER.readTree(dataStr);
+      String indexValue = getString(jsStr, indexKey);
       if (indexValue != null) {
         template.upsertEntity(indexKey, indexValue, dataStr);
       } else {
         template.addEntity(dataStr);
       }
     } catch (Exception ex) {
-      log.error("upsertEntityLong exception happened in parse object ", ex);
+      log.error("upsertEntityString exception happened in parse object ", ex);
     }
   }
 
   public void handleBlockEvent(Object data) {
-    if (blockTopic == null || blockTopic.length() == 0) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(blockTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(blockTopic);
     if (Objects.nonNull(template)) {
-      service.execute(new Runnable() {
-        @Override
-        public void run() {
-          if (mongoConfig.enabledIndexes()) {
-            upsertEntityLong(template, data, "blockNumber");
-          } else {
-            template.addEntity((String) data);
-          }
+      service.execute(() -> {
+        if (mongoConfig.enabledIndexes()) {
+          upsertEntityLong(template, data, "blockNumber");
+        } else {
+          template.addEntity((String) data);
         }
       });
     }
   }
 
   public void handleTransactionTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(transactionTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(transactionTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(transactionTopic);
     if (Objects.nonNull(template)) {
-      service.execute(new Runnable() {
-        @Override
-        public void run() {
-          if (mongoConfig.enabledIndexes()) {
-            upsertEntityString(template, data, "transactionId");
-          } else {
-            template.addEntity((String) data);
-          }
+      service.execute(() -> {
+        if (mongoConfig.enabledIndexes()) {
+          upsertEntityString(template, data, "transactionId");
+        } else {
+          template.addEntity((String) data);
         }
       });
     }
   }
 
   public void handleSolidityTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(solidityTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(solidityTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(solidityTopic);
     if (Objects.nonNull(template)) {
-      service.execute(new Runnable() {
-        @Override
-        public void run() {
-          if (mongoConfig.enabledIndexes()) {
-            upsertEntityLong(template, data, "latestSolidifiedBlockNumber");
-          } else {
-            template.addEntity((String) data);
-          }
+      service.execute(() -> {
+        if (mongoConfig.enabledIndexes()) {
+          upsertEntityLong(template, data, "latestSolidifiedBlockNumber");
+        } else {
+          template.addEntity((String) data);
         }
       });
     }
@@ -451,298 +448,184 @@ public class MongodbSenderImpl {
 
   // will not delete when removed is set to true
   public void handleContractLogTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(contractLogTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(contractLogTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(contractLogTopic);
     if (Objects.nonNull(template)) {
-      service.execute(new Runnable() {
-        @Override
-        public void run() {
-          handleInsertContractTrigger(template, data, "uniqueId");
-        }
-      });
+      service.execute(() -> handleInsertContractTrigger(template, data, "uniqueId"));
     }
   }
 
   public void handleContractEventTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(contractEventTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(contractEventTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(contractEventTopic);
     if (Objects.nonNull(template)) {
-      service.execute(new Runnable() {
-        @Override
-        public void run() {
-          String dataStr = (String) data;
-          if (dataStr.contains("\"removed\":true")) {
-            try {
-              JSONObject jsStr = JSON.parseObject(dataStr);
-              String uniqueId = jsStr.getString("uniqueId");
-              if (uniqueId != null) {
-                template.delete("uniqueId", uniqueId);
-              }
-            } catch (Exception ex) {
-              log.error("unknown exception happened in parse object ", ex);
+      service.execute(() -> {
+        String dataStr = (String) data;
+        if (dataStr.contains("\"removed\":true")) {
+          try {
+            JsonNode jsStr = OBJECT_MAPPER.readTree(dataStr);
+            String uniqueId = getString(jsStr, "uniqueId");
+            if (uniqueId != null) {
+              template.delete("uniqueId", uniqueId);
             }
-          } else {
-            handleInsertContractTrigger(template, data, "uniqueId");
+          } catch (Exception ex) {
+            log.error("unknown exception happened in parse object ", ex);
           }
+        } else {
+          handleInsertContractTrigger(template, data, "uniqueId");
         }
       });
     }
   }
 
   public void handleSolidityLogTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(solidityLogTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(solidityLogTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(solidityLogTopic);
     if (Objects.nonNull(template)) {
-      service.execute(new Runnable() {
-        @Override
-        public void run() {
-          handleInsertContractTrigger(template, data, "uniqueId");
-        }
-      });
+      service.execute(() -> handleInsertContractTrigger(template, data, "uniqueId"));
     }
   }
 
   public void handleSolidityEventTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(solidityEventTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(solidityEventTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(solidityEventTopic);
     if (Objects.nonNull(template)) {
-      service.execute(new Runnable() {
-        @Override
-        public void run() {
-          handleInsertContractTrigger(template, data, "uniqueId");
-        }
-      });
+      service.execute(() -> handleInsertContractTrigger(template, data, "uniqueId"));
     }
   }
 
   public void handleBlockContractLogTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(blockContractLogTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(blockContractLogTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(blockContractLogTopic);
     if (Objects.nonNull(template)) {
-      JSONObject trigger = JSONObject.parseObject((String) data);
-      String blockHash = trigger.getString("blockHash");
-      long blockNumber = trigger.getLong("blockNumber");
+      try {
+        Document trigger = Document.parse((String) data);
+        String blockHash = trigger.getString("blockHash");
+        Long blockNumber = getLong(trigger.get("blockNumber"));
+        if (StringUtils.isNullOrEmpty(blockHash) || blockNumber == null) {
+          return;
+        }
 
-      List<Document> exists = template.queryByCondition(Filters.and(
-          Filters.eq("blockNumber", blockNumber),
-          Filters.eq("blockHash", blockHash)));
-      if(exists == null || exists.isEmpty()) {
-        template.addEntity((String) data);
-      } else {
-        Object transactionList = trigger.get("transactionList");
-        // update exist transactions in mongo
-        template.update("transactionList", transactionList, "blockHash", blockHash);
+        List<Document> exists = template.queryByCondition(Filters.and(
+            Filters.eq("blockNumber", blockNumber),
+            Filters.eq("blockHash", blockHash)));
+        if (exists == null || exists.isEmpty()) {
+          template.addEntity((String) data);
+        } else {
+          Object transactionList = trigger.get("transactionList");
+          template.update("transactionList", transactionList, "blockHash", blockHash);
+        }
+      } catch (Exception e) {
+        log.error("handleBlockContractLogTrigger in mongo error ", e);
+        throw e;
       }
     }
   }
 
   public void handleTrc20Trigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(trc20TrackerTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(trc20TrackerTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(trc20TrackerTopic);
     if (Objects.nonNull(template)) {
-      try {
-        template.addEntity((String)data);
-      } catch (DuplicateKeyException e) {
-        log.warn("DuplicateKeyException, mongo error, duplicate key: blockhash, jsonData={}", data);
-      } catch (MongoWriteException ex) {
-        if (ex.getMessage().contains("duplicate key error")) {
-          log.warn("handleTrc20Trigger in mongo error, duplicate key: blockhash, jsonData={}", data);
-        } else {
-          log.error("handleTrc20Trigger in mongo error ", ex);
-          throw ex;
-        }
-      } catch (Exception e) {
-        log.error("handleTrc20Trigger in mongo error ", e);
-        throw e;
-      }
+      addTrackerEntity("handleTrc20Trigger", template, data);
     }
   }
 
-
   public void handleTransferTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(transferTrackerTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(transferTrackerTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(transferTrackerTopic);
     if (Objects.nonNull(template)) {
-      try {
-        template.addEntity((String)data);
-      } catch (DuplicateKeyException e) {
-        log.warn("handleTransferTrigger DuplicateKeyException, mongo error, duplicate key: blockhash, jsonData={}", data);
-      } catch (MongoWriteException ex) {
-        if (ex.getMessage().contains("duplicate key error")) {
-          log.warn("handleTransferTrigger in mongo error, duplicate key: blockhash, jsonData={}", data);
-        } else {
-          log.error("handleTransferTrigger in mongo error ", ex);
-          throw ex;
-        }
-      } catch (Exception e) {
-        log.error("handleTransferTrigger in mongo error ", e);
-        throw e;
-      }
+      addTrackerEntity("handleTransferTrigger", template, data);
     }
   }
 
-
   public void handleFreezeTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(freezeTrackerTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(freezeTrackerTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(freezeTrackerTopic);
     if (Objects.nonNull(template)) {
-      try {
-        template.addEntity((String)data);
-      } catch (DuplicateKeyException e) {
-        log.warn("DuplicateKeyException, mongo error, duplicate key: blockhash, jsonData={}", data);
-      } catch (MongoWriteException ex) {
-        if (ex.getMessage().contains("duplicate key error")) {
-          log.warn("handleTrc20Trigger in mongo error, duplicate key: blockhash, jsonData={}", data);
-        } else {
-          log.error("handleTrc20Trigger in mongo error ", ex);
-          throw ex;
-        }
-      } catch (Exception e) {
-        log.error("handleTrc20Trigger in mongo error ", e);
-        throw e;
-      }
+      addTrackerEntity("handleFreezeTrigger", template, data);
     }
   }
 
   public void handleStakeTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(stakeTrackerTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(stakeTrackerTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(stakeTrackerTopic);
     if (Objects.nonNull(template)) {
-      try {
-        template.addEntity((String)data);
-      } catch (DuplicateKeyException e) {
-        log.warn("DuplicateKeyException, mongo error, duplicate key: blockhash, jsonData={}", data);
-      } catch (MongoWriteException ex) {
-        if (ex.getMessage().contains("duplicate key error")) {
-          log.warn("handleTrc20Trigger in mongo error, duplicate key: blockhash, jsonData={}", data);
-        } else {
-          log.error("handleTrc20Trigger in mongo error ", ex);
-          throw ex;
-        }
-      } catch (Exception e) {
-        log.error("handleTrc20Trigger in mongo error ", e);
-        throw e;
-      }
+      addTrackerEntity("handleStakeTrigger", template, data);
     }
   }
 
   public void handleMultiAuthTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(multiAuthTrackerTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(multiAuthTrackerTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(multiAuthTrackerTopic);
     if (Objects.nonNull(template)) {
-      try {
-        template.addEntity((String)data);
-      } catch (DuplicateKeyException e) {
-        log.warn("handleMultiAuthTrigger mongo error, duplicate key: blockhash, jsonData={}", data);
-      } catch (MongoWriteException ex) {
-        if (ex.getMessage().contains("duplicate key error")) {
-          log.warn("handleMultiAuthTrigger in mongo error, duplicate key: blockhash, jsonData={}", data);
-        } else {
-          log.error("handleMultiAuthTrigger in mongo error ", ex);
-          throw ex;
-        }
-      } catch (Exception e) {
-        log.error("handleMultiAuthTrigger in mongo error ", e);
-        throw e;
-      }
+      addTrackerEntity("handleMultiAuthTrigger", template, data);
     }
   }
 
   public void handleShieldedTrc20Trigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(shieldedTRC20TrackerTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(shieldedTRC20TrackerTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(shieldedTRC20TrackerTopic);
     if (Objects.nonNull(template)) {
-      try {
-        template.addEntity((String)data);
-      } catch (Exception e) {
-        log.error("handleShieldedTrc20Trigger in mongo error ", e);
-        throw e;
-      }
+      addTrackerEntity("handleShieldedTrc20Trigger", template, data);
     }
   }
 
-
   public void handleShieldedTrc20SolidityTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(shieldedTRC20TrackerTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(shieldedTRC20TrackerTopic)) {
       return;
     }
 
-    //MongoTemplate template = mongoTemplateMap.get(trc20SolidityTrackerTopic);
     MongoTemplate template = mongoTemplateMap.get(shieldedTRC20TrackerTopic);
     if (Objects.nonNull(template)) {
-      try {
-        String dataStr = (String)data;
-        JSONObject jsStr = JSONObject.parseObject(dataStr);
-        String blockHash = jsStr.getString("blockHash");
-        if (StringUtils.isNotNullOrEmpty(blockHash)) {
-          template.update("solidity",new Boolean(true),"blockHash",blockHash);
-        }
-      } catch (Exception ex) {
-        log.error("handleTrc20SolidityTrigger in mongo error ", ex);
-        throw ex;
-      }
+      updateSolidityByBlockHash("handleShieldedTrc20SolidityTrigger", template, data);
     }
   }
 
   public void handleJustLendTrackerTrigger(Object data) {
-    if (Objects.isNull(data) || Objects.isNull(justlendTrackerTopic)) {
+    if (Objects.isNull(data) || StringUtils.isNullOrEmpty(justlendTrackerTopic)) {
       return;
     }
 
     MongoTemplate template = mongoTemplateMap.get(justlendTrackerTopic);
     if (Objects.nonNull(template)) {
-      try {
-        template.addEntity((String) data);
-      } catch (DuplicateKeyException e) {
-        log.warn("DuplicateKeyException, mongo error, duplicate key: blockhash, jsonData={}", data);
-      } catch (MongoWriteException ex) {
-        if (ex.getMessage().contains("duplicate key error")) {
-          log.warn("handleJustLendTrackerTrigger in mongo error, duplicate key: blockhash, jsonData={}", data);
-        } else {
-          log.error("handleJustLendTrackerTrigger in mongo error ", ex);
-          throw ex;
-        }
-      } catch (Exception e) {
-        log.error("handleJustLendTrackerTrigger in mongo error ", e);
-        throw e;
-      }
+      addTrackerEntity("handleJustLendTrackerTrigger", template, data);
     }
   }
 
-  private Runnable triggerProcessLoop =
+  private final Runnable triggerProcessLoop =
       () -> {
         while (isRunTriggerProcessThread) {
           try {
@@ -752,33 +635,67 @@ public class MongodbSenderImpl {
               continue;
             }
 
-            if (triggerData.contains(Constant.BLOCK_CONTRACTLOG_TRIGGER_NAME)) {
-              handleBlockContractLogTrigger(triggerData);
-            } else if (triggerData.contains(Constant.BLOCK_TRIGGER_NAME)) {
-              handleBlockEvent(triggerData);
-            } else if (triggerData.contains(Constant.TRANSACTION_TRIGGER_NAME)) {
-              handleTransactionTrigger(triggerData);
-            } else if (triggerData.contains(Constant.CONTRACTLOG_TRIGGER_NAME)) {
-              handleContractLogTrigger(triggerData);
-            } else if (triggerData.contains(Constant.CONTRACTEVENT_TRIGGER_NAME)) {
-              handleContractEventTrigger(triggerData);
-            } else if (triggerData.contains(Constant.SOLIDITY_TRIGGER_NAME)) {
-              handleSolidityTrigger(triggerData);
-            } else if (triggerData.contains(Constant.SOLIDITYLOG_TRIGGER_NAME)) {
-              handleSolidityLogTrigger(triggerData);
-            } else if (triggerData.contains(Constant.SOLIDITYEVENT_TRIGGER_NAME)) {
-              handleSolidityEventTrigger(triggerData);
-            } else if (triggerData.contains(Constant.TRC20TRACKER_TRIGGER_NAME)) {
-              handleTrc20Trigger(triggerData);
-            } else if (triggerData.contains(Constant.SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER_NAME)) {
-              handleShieldedTrc20SolidityTrigger(triggerData);
-            } else if (triggerData.contains(Constant.SHIELDED_TRC20TRACKER_TRIGGER_NAME)) {
-              handleShieldedTrc20Trigger(triggerData);
-            } else if (triggerData.contains(Constant.JUSTLEND_TRACKER_TRIGGER_NAME)) {
-              handleJustLendTrackerTrigger(triggerData);
+            JsonNode jsonObject = OBJECT_MAPPER.readTree(triggerData);
+            EventTopic eventTopic = getEventTopic(jsonObject, triggerData);
+            if (eventTopic == null) {
+              log.error("Not matched triggerName in data {}", triggerData);
+              continue;
             }
+            switch (eventTopic) {
+              case BLOCK_CONTRACT_LOG_TRIGGER:
+                handleBlockContractLogTrigger(triggerData);
+                break;
+              case BLOCK_TRIGGER:
+                handleBlockEvent(triggerData);
+                break;
+              case TRANSACTION_TRIGGER:
+                handleTransactionTrigger(triggerData);
+                break;
+              case CONTRACT_LOG_TRIGGER:
+                handleContractLogTrigger(triggerData);
+                break;
+              case CONTRACT_EVENT_TRIGGER:
+                handleContractEventTrigger(triggerData);
+                break;
+              case SOLIDITY_TRIGGER:
+                handleSolidityTrigger(triggerData);
+                break;
+              case SOLIDITY_LOG:
+                handleSolidityLogTrigger(triggerData);
+                break;
+              case SOLIDITY_EVENT:
+                handleSolidityEventTrigger(triggerData);
+                break;
+              case TRC20TRACKER_TRIGGER:
+                handleTrc20Trigger(triggerData);
+                break;
+              case SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER:
+                handleShieldedTrc20SolidityTrigger(triggerData);
+                break;
+              case SHIELDED_TRC20TRACKER_TRIGGER:
+                handleShieldedTrc20Trigger(triggerData);
+                break;
+              case TRANSFER_TRACKER_TRIGGER:
+              case TRANSFER_TRIGGER:
+                handleTransferTrigger(triggerData);
+                break;
+              case MULTIAUTH_TRACKER_TRIGGER:
+                handleMultiAuthTrigger(triggerData);
+                break;
+              case FREEZE_TRACKER_TRIGGER:
+                handleFreezeTrigger(triggerData);
+                break;
+              case STAKE_TRACKER_TRIGGER:
+                handleStakeTrigger(triggerData);
+                break;
+              case JUSTLEND_TRACKER_TRIGGER:
+                handleJustLendTrackerTrigger(triggerData);
+                break;
+              case BLOCK_ERASE_TRIGGER:
+                break;
+            }
+            log.debug("handle triggerData: {}", triggerData);
           } catch (InterruptedException ex) {
-            log.info(ex.getMessage());
             Thread.currentThread().interrupt();
           } catch (Exception ex) {
             log.error("unknown exception happened in process capsule loop", ex);
@@ -788,13 +705,152 @@ public class MongodbSenderImpl {
         }
       };
 
-    public String getEventFilterList(){
-        MongoTemplate template = mongoTemplateMap.get(filterCollection);
-        if (Objects.nonNull(template)) {
-          List<Document> filters = template.queryByCondition(Filters.exists("disable", false));
-          return com.mongodb.util.JSON.serialize(filters);
-        }
-        return null;
+  public String getEventFilterList() {
+    if (Objects.isNull(mongoTemplateMap)) {
+      return null;
     }
 
+    MongoTemplate template = mongoTemplateMap.get(filterCollection);
+    if (Objects.nonNull(template)) {
+      List<Document> filters = template.queryByCondition(Filters.exists("disable", false));
+      return com.mongodb.util.JSON.serialize(filters);
+    }
+    return null;
+  }
+
+  private void addTrackerEntity(String handlerName, MongoTemplate template, Object data) {
+    try {
+      template.addEntity((String) data);
+    } catch (DuplicateKeyException e) {
+      log.warn("{}, mongo error, duplicate key: blockhash, jsonData={}", handlerName, data);
+    } catch (MongoWriteException ex) {
+      String message = ex.getMessage();
+      if (message != null && message.contains("duplicate key error")) {
+        log.warn("{} in mongo error, duplicate key: blockhash, jsonData={}", handlerName, data);
+      } else {
+        log.error("{} in mongo error ", handlerName, ex);
+        throw ex;
+      }
+    } catch (RuntimeException e) {
+      log.error("{} in mongo error ", handlerName, e);
+      throw e;
+    }
+  }
+
+  private void updateSolidityByBlockHash(String handlerName, MongoTemplate template, Object data) {
+    try {
+      Document trigger = Document.parse((String) data);
+      String blockHash = trigger.getString("blockHash");
+      if (StringUtils.isNotNullOrEmpty(blockHash)) {
+        template.update("solidity", Boolean.TRUE, "blockHash", blockHash);
+      }
+    } catch (RuntimeException ex) {
+      log.error("{} in mongo error ", handlerName, ex);
+      throw ex;
+    }
+  }
+
+  private EventTopic getEventTopic(JsonNode jsonObject, String triggerData) {
+    if (jsonObject.has("triggerName")) {
+      String triggerName = getString(jsonObject, "triggerName");
+      EventTopic eventTopic = EventTopic.getEventTopicByName(triggerName);
+      if (eventTopic != null) {
+        return eventTopic;
+      }
+      log.error("Not matched triggerName {} in data {}", triggerName, triggerData);
+    }
+    return getEventTopicByContent(triggerData);
+  }
+
+  private EventTopic getEventTopicByContent(String triggerData) {
+    EventTopic[] eventTopics = {
+        EventTopic.BLOCK_CONTRACT_LOG_TRIGGER,
+        EventTopic.BLOCK_TRIGGER,
+        EventTopic.TRANSACTION_TRIGGER,
+        EventTopic.CONTRACT_LOG_TRIGGER,
+        EventTopic.CONTRACT_EVENT_TRIGGER,
+        EventTopic.SOLIDITY_TRIGGER,
+        EventTopic.SOLIDITY_LOG,
+        EventTopic.SOLIDITY_EVENT,
+        EventTopic.TRC20TRACKER_TRIGGER,
+        EventTopic.SHIELDED_TRC20SOLIDITYTRACKER_TRIGGER,
+        EventTopic.SHIELDED_TRC20TRACKER_TRIGGER,
+        EventTopic.TRANSFER_TRACKER_TRIGGER,
+        EventTopic.TRANSFER_TRIGGER,
+        EventTopic.MULTIAUTH_TRACKER_TRIGGER,
+        EventTopic.FREEZE_TRACKER_TRIGGER,
+        EventTopic.STAKE_TRACKER_TRIGGER,
+        EventTopic.JUSTLEND_TRACKER_TRIGGER
+    };
+    for (EventTopic eventTopic : eventTopics) {
+      if (triggerData.contains(eventTopic.getName())) {
+        return eventTopic;
+      }
+    }
+    return null;
+  }
+
+  private Long getLong(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    if (Objects.isNull(value) || value.isNull()) {
+      return null;
+    }
+    if (value.isNumber()) {
+      return value.longValue();
+    }
+    String valueText = value.asText(null);
+    if (StringUtils.isNullOrEmpty(valueText)) {
+      return null;
+    }
+    return Long.parseLong(valueText);
+  }
+
+  private Long getLong(Object value) {
+    if (Objects.isNull(value)) {
+      return null;
+    }
+    if (value instanceof Number) {
+      return ((Number) value).longValue();
+    }
+    return Long.parseLong(String.valueOf(value));
+  }
+
+  private String getString(JsonNode node, String key) {
+    JsonNode value = node.get(key);
+    if (Objects.isNull(value) || value.isNull()) {
+      return null;
+    }
+    return value.asText();
+  }
+
+  @Override
+  public void close() {
+    log.info("Closing MongodbSender...");
+    isRunTriggerProcessThread = false;
+    if (triggerProcessThread != null) {
+      triggerProcessThread.interrupt();
+      try {
+        triggerProcessThread.join(1000);
+      } catch (InterruptedException e) {
+        log.warn("Interrupted while waiting for triggerProcessThread to stop");
+        Thread.currentThread().interrupt();
+      }
+    }
+    service.shutdown();
+    try {
+      if (!service.awaitTermination(60, java.util.concurrent.TimeUnit.SECONDS)) {
+        service.shutdownNow();
+        if (!service.awaitTermination(60, java.util.concurrent.TimeUnit.SECONDS)) {
+          log.warn("Mongo service thread pool did not terminate");
+        }
+      }
+    } catch (InterruptedException ie) {
+      service.shutdownNow();
+      Thread.currentThread().interrupt();
+    }
+    if (mongoManager != null) {
+      mongoManager.close();
+    }
+    log.info("MongodbSender closed.");
+  }
 }

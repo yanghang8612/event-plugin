@@ -1,85 +1,100 @@
-# Tron eventsubscribe plugin
+# Tron event subscribe plugin
 
-This is an implementation of Tron eventsubscribe model. 
+This is an implementation of Tron event subscribe model.
 
 * **api** module defines IPluginEventListener, a protocol between Java-tron and event plugin. 
 * **app** module is an example for loading plugin, developers could use it for debugging.
 * **kafkaplugin** module is the implementation for kafka, it implements IPluginEventListener, it receives events subscribed from Java-tron and relay events to kafka server. 
 * **mongodbplugin** mongodbplugin module is the implementation for mongodb. 
 ### Setup/Build
-
+Event-plugin can be built with JDK 8 or JDK 17.
 1. Clone the repo
 2. Go to eventplugin `cd eventplugin` 
 3. run `./gradlew build`
 
-* This will produce plugin zips, named `plugin-kafka-1.0.0.zip` and `plugin-mongodb-1.0.0.zip`, located in the `eventplugin/build/plugins/` directory.
+* This will produce plugin zips, named `plugin-kafka-{version}.zip` and `plugin-mongodb-{version}.zip`, located in the `eventplugin/build/plugins/` directory.
 
 
-### Edit **config.conf** of Java-tron, add the following fileds:
+### Edit **[config.conf](https://github.com/tronprotocol/java-tron/blob/develop/framework/src/main/resources/config.conf)** of Java-tron, update the following fields as necessary:
 ```
 event.subscribe = {
-    path = "" // absolute path of plugin
-    server = "" // target server address to receive event triggers
-    dbconfig = "" // dbname|username|password, if you want to create indexes for collections when the collections are not exist, you can add version and set it to 2, as dbname|username|password|version
+    enable = true # Whether to enable event subscription.
+
+    version = 0 # Event subscription version.
+    # Specify the starting block number to sync historical events. Only applicable when version = 1.
+    # After performing a full event sync, set this value to 0 or a negative number.
+    startSyncBlockNum = 0
+    path = ""   // absolute path of plugin
+    server = "" // target server address to receive event triggers, "ip:port"
+    # dbname|username|password. To auto-create indexes on missing collections, append |2:
+    # dbname|username|password|2 (if collection exists, indexes must be created manually).
+    dbconfig = ""
+    contractParse = true # Whether to parse contract event data.
+
+    # Event trigger topics.
     topics = [
-        {
-          triggerName = "block" // block trigger, the value can't be modified
-          enable = false
-          topic = "block" // plugin topic, the value could be modified
-          solidified = true // if set true, just need solidified block, default is false
-        },
-        {
-          triggerName = "transaction"
-          enable = false
-          topic = "transaction"
-          solidified = true
-          ethCompatible = true // if set true, add transactionIndex, cumulativeEnergyUsed, preCumulativeLogCount, logList, energyUnitPrice, default is false
-        },
-        {
-          triggerName = "contractevent"
-          enable = true
-          topic = "contractevent"
-        },
-        {
-          triggerName = "contractlog"
-          enable = true
-          topic = "contractlog"
-          redundancy = true // if set true, contractevent will also be regarded as contractlog
-        },
-        {
-          triggerName = "solidity" // solidity block trigger(just include solidity block number and timestamp), the value can't be modified
-          enable = true            // the default value is true
-          topic = "solidity"
-        },
-        {
-          triggerName = "solidityevent"
-          enable = false
-          topic = "solidityevent"
-        },
-        {
-          triggerName = "soliditylog"
-          enable = false
-          topic = "soliditylog"
-          redundancy = true // if set true, solidityevent will also be regarded as soliditylog
-        }
+      {
+        triggerName = "block" // block trigger, the value can't be modified
+        enable = false        // Whether to enable this trigger.
+        topic = "block"       // plugin topic, the value could be modified
+        solidified = true    // if set true, just need solidified block. Default: false
+      },
+      {
+        triggerName = "transaction"
+        enable = false
+        topic = "transaction"
+        solidified = true
+        // if set true, add transactionIndex, cumulativeEnergyUsed, preCumulativeLogCount, logList, energyUnitPrice.
+        // Default: false
+        ethCompatible = true
+      },
+      {
+        triggerName = "contractevent" // contractevent represents contractlog data decoded by the ABI.
+        enable = true
+        topic = "contractevent"
+      },
+      {
+        triggerName = "contractlog"
+        enable = true
+        topic = "contractlog"
+        redundancy = true // if set true, contractevent will also be regarded as contractlog
+      },
+      {
+        triggerName = "solidity" // solidity block trigger (just block number and timestamp), the value can't be modified
+        enable = true
+        topic = "solidity"
+      },
+      {
+        triggerName = "solidityevent"
+        enable = false
+        topic = "solidityevent"
+      },
+      {
+        triggerName = "soliditylog"
+        enable = false
+        topic = "soliditylog"
+        redundancy = true // if set true, solidityevent will also be regarded as soliditylog
+      }
     ]
 
+    # Event filter settings.
     filter = {
-       fromblock = "" // the value could be "", "earliest" or a specified block number as the beginning of the queried range
-       toblock = "" // the value could be "", "latest" or a specified block number as end of the queried range
-       contractAddress = [
-           "" // contract address you want to subscribe, if it's set to "", you will receive contract logs/events with any contract address.
-       ]
-
-       contractTopic = [
-           "" // contract topic you want to subscribe, if it's set to "", you will receive contract logs/events with any contract topic.
-       ]
+      fromblock = "" // "", "earliest", or a specific block number as the beginning of the queried range
+      toblock = ""   // "", "latest", or a specific block number as end of the queried range
+      // Contract addresses to subscribe; "" means any contract address.
+      contractAddress = [
+        ""
+      ]
+      // Contract topics to subscribe; "" means any contract topic.
+      contractTopic = [
+        ""
+      ]
     }
 }
 
 
 ```
- * **path**: is the absolute path of "plugin-kafka-1.0.0.zip" or "plugin-mongodb-1.0.0.zip"
+ * **path**: is the absolute path of "plugin-kafka-{version}.zip" or "plugin-mongodb-{version}.zip"
  * **server**: Kafka(or MongoDB) server address, the default port is 9092(MongoDB is 27017)
  * **dbconfig**: db configuration information for mongodb, if using kafka, delete this one; if using Mongodb, add like that dbname|username|password or dbname|username|password|version if you want to create indexes when init
  * **topics**: each event type maps to one Kafka topic(or MongoDB collection), we support seven event types subscribing, block, transaction, contractlog, contractevent, solidity, soliditylog and solidityevent.   
@@ -95,13 +110,14 @@ event.subscribe = {
            remove comment and set listeners=PLAINTEXT://:9092  
            remove comment and set advertised.listeners to PLAINTEXT://host_ip:9092 
 
+### How to use kafka plugin
 ##### Install Kafka
-**On Mac**:
+*On Mac*:
 ```
 brew install kafka
 ```
 
-**On Linux**:
+*On Linux*:
 ```
 cd /usr/local
 wget http://archive.apache.org/dist/kafka/0.10.2.2/kafka_2.10-0.10.2.2.tgz
@@ -115,12 +131,12 @@ source /etc/profile
 **Note**: make sure the version of Kafka is the same as the version set in build.gradle of eventplugin project.(kafka_2.10-0.10.2.2 kafka)
 
 ##### Run Kafka
-**On Mac**:
+*On Mac*:
 ```
 zookeeper-server-start /usr/local/etc/kafka/zookeeper.properties & kafka-server-start /usr/local/etc/kafka/server.properties
 ```
 
-**On Linux**:
+*On Linux*:
 ```
 zookeeper-server-start.sh /usr/local/kafka/config/zookeeper.properties &
 Sleep about 3 seconds 
@@ -129,7 +145,7 @@ kafka-server-start.sh /usr/local/kafka/config/server.properties &
 
 #### Create topics to receive events, the topic is defined in config.conf
 
-**On Mac**:
+*On Mac*:
 ```
 kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic block
 kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic transaction
@@ -140,7 +156,7 @@ kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partit
 kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic soliditylog
 ```
 
-**On Linux**:
+*On Linux*:
 ```
 kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic block
 kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic transaction
@@ -153,7 +169,7 @@ kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --par
 
 #### Kafka consumer
 
-**On Mac**:
+*On Mac*:
 ```
 kafka-console-consumer --bootstrap-server localhost:9092  --topic block
 kafka-console-consumer --bootstrap-server localhost:9092  --topic transaction
@@ -164,7 +180,7 @@ kafka-console-consumer --bootstrap-server localhost:9092  --topic solidityevent
 kafka-console-consumer --bootstrap-server localhost:9092  --topic soliditylog
 ```
 
-**On Linux**:
+*On Linux*:
 ```
 kafka-console-consumer.sh --zookeeper localhost:2181 --topic block
 kafka-console-consumer.sh --zookeeper localhost:2181 --topic transaction
@@ -174,6 +190,29 @@ kafka-console-consumer.sh --zookeeper localhost:2181 --topic solidity
 kafka-console-consumer.sh --zookeeper localhost:2181 --topic solidityevent
 kafka-console-consumer.sh --zookeeper localhost:2181 --topic soliditylog
 ```
+
+See more details on [developers](https://developers.tron.network/docs/event-plugin-deployment-kafka).
+
+### How to use MongoDB plugin
+These are default indexes when build automatically:
+```
+db.block.createIndex({ blockNumber: 1 },{ name: "blockNumber",unique: true});
+
+db.transaction.createIndex({ transactionId: 1 },{ name: "transactionId",unique: true });
+
+db.solidity.createIndex({ latestSolidifiedBlockNumber: 1 },{ name: "latestSolidifiedBlockNumber",unique: true });
+
+db.solidityevent.createIndex({ uniqueId: 1 },{ name: "uniqueId",unique: true });
+
+db.contractevent.createIndex({ uniqueId: 1 },{ name: "uniqueId",unique: true });
+
+db.soliditylog.createIndex({ uniqueId: 1 },{ name: "uniqueId",unique: true });
+db.soliditylog.createIndex({ contractAddress: 1 },{ name: "contractAddress" });
+
+db.contractlog.createIndex({ uniqueId: 1 },{ name: "uniqueId",unique: true });
+db.contractlog.createIndex({ contractAddress: 1 },{ name: "contractAddress" });
+```
+You can also create other indexes as necessary. See more details on [developers](https://developers.tron.network/docs/event-plugin-deployment-mongodb).
 
 ### Load plugin in Java-tron
 * add --es to command line, for example:
